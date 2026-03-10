@@ -96,7 +96,6 @@
 \setmainfont{Times New Roman}
 \setCJKmainfont[BoldFont=SimHei]{SimSun}
 \setCJKfamilyfont{kai}[AutoFakeBold=2]{KaiTi}
-\setCJKfamilyfont{boldsong}[AutoFakeBold=2.5]{SimSun}
 \newcommand{\kaiti}{\CJKfamily{kai}}
 
 % === 页面设置 ===
@@ -319,7 +318,7 @@
    % 数值评分标准说明
     \newcommand{\scoringrule}{%
         {% 作用域开始
-        \CJKfamily{boldsong}\bfseries\boldmath % 依次开启：中文宋体加粗、西文加粗、数学公式加粗
+        \bfseries\boldmath
         \noindent *数值评分遵循以下标准：%
         \par\vspace{0.5em}%
         
