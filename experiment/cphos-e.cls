@@ -221,6 +221,19 @@
     \ifcase#1\or 一\or 二\or 三\or 四\or 五\or 六\or 七\or 八\or 九\or 十\fi
 }
 
+% === 自定义带透明度与高度控制的灰底高亮 ===
+\newcommand{\cphoshl}[1]{%
+    \tikz[baseline=(X.base)] \node [
+        fill=black!40,        % 填充颜色（配合透明度稍微加深一点基色）
+        fill opacity=0.25,    % 背景透明度（0.25表示透出75%的水印，完美解决遮挡）
+        text opacity=1,       % 文字完全不透明
+        inner xsep=0.3em,     % 左右边距
+        inner ysep=0.15em,    % 上下边距（调小此值，使灰底只占行高80%左右）
+        outer sep=0pt,
+        rounded corners=1pt   % 加一点点圆角，视觉上更精致
+    ] (X) {#1};%
+}
+
 % === 题目环境 ===
 % \begin{problem}[总分]{标题}...
 \newcommand{\cphos@problem@score}{}
@@ -302,22 +315,28 @@
     \RequirePackage{multirow}
     \RequirePackage{hhline}
 
-    % 数值评分标准说明
+   % 数值评分标准说明
     \newcommand{\scoringrule}{%
-        \noindent\textbf{*数值评分遵循以下标准：}%
+        {% 作用域开始
+        \bfseries\boldmath
+        \noindent *数值评分遵循以下标准：%
         \par\vspace{0.5em}%
-        \hspace{2em}$Y = y_0$，\quad Num $= A - B - X$；$\Delta = 0 - \alpha - \beta$%
-        \par\vspace{0.3em}%
+        
+        % 使用 \centering 让公式居中，\par 保证居中段落正确结束
+        {\centering $Y = y_0$，\quad Num $= A - B - X$；$\Delta = 0 - \alpha - \beta$\par}%
+        
+        \vspace{0.3em}%
         \noindent 若考生给出$y$的有效位数为$A$，数值为$|y - y_0| \le \alpha$，不扣分；有效位数为$B$，或%
         $|y - y_0| \in (\alpha, \beta]$，或物理量少单位，扣除50\%分数；有效位数为$A, B$以外的值，或$|y - y_0| > \beta$，%
         扣除100\%分数。该扣分得分扣完为止。计算过程中有效数字可以多（少）保留一位。没有给出Num的，表示与答案不同的有效位数扣除100\%分数；%
         没有给出$\Delta$的，允许在末位出现1的偏差，否则扣除100\%分数。%
         \par\vspace{1em}%
+        }% 作用域结束
     }
 
     % \spt{分值} 或 \spt[内容]{分值} - 得分点标记
     \NewDocumentCommand{\spt}{o m}{%
-        \IfValueT{#1}{\textbf{#1}}%
+        \IfValueT{#1}{\cphoshl{\textbf{#1}}}%
         \cphosExpRecordSpt{#2}%
     }
 
@@ -346,12 +365,12 @@
         }%
         \ifcphos@firstSubQ
             \Alph{problemnum}.\cphos@currentPart%
-            \ifx\cphos@currentPartScore\@empty\else\newline\textbf{\cphos@currentPartScore pt}\fi%
+            \ifx\cphos@currentPartScore\@empty\else\newline\vspace{0.2em}\cphoshl{\textbf{\cphos@currentPartScore pt}}\fi%
             \global\cphos@firstSubQfalse
         \fi
         &
         \Alph{problemnum}.\cphos@currentPart.\arabic{ansSubQNum}%
-        \IfValueT{#1}{\newline \textbf{#1pt}}%
+        \IfValueT{#1}{\newline\vspace{0.2em}\cphoshl{\textbf{#1pt}}}%
         &
         #2 \\
         \hhline{|~|-|-|}%
@@ -367,7 +386,7 @@
         }%
         &
         \Alph{problemnum}.\cphos@currentPart.\arabic{ansSubQNum}%
-        \IfValueT{#1}{\newline \textbf{#1pt}}%
+        \IfValueT{#1}{\newline\vspace{0.2em}\cphoshl{\textbf{#1pt}}}%
         &
         #2 \\
         \hline%
@@ -519,9 +538,8 @@
 
 % === 标题页命令 ===
 \newcommand{\maketitlepage}{%
-    \ifcphos@answersheet
-        % answersheet模式：不显示标题页
-    \else
+    \ifcphos@exam
+        % exam模式：显示标题页
         \thispagestyle{firstpage}%
         \begin{center}
             {\fontsize{16pt}{24pt}\selectfont\bfseries \cphos@title} \\[0.3em]
