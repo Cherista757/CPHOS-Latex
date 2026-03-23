@@ -20,6 +20,7 @@
   - [评分标准系统](#评分标准系统)
     - [层级声明命令（手动方式）](#层级声明命令手动方式)
     - [计分命令](#计分命令)
+    - [多解法环境 `multisol`](#多解法环境-multisol)
     - [自动生成评分标准](#自动生成评分标准)
     - [分值检查](#分值检查)
   - [页眉页脚设置](#页眉页脚设置)
@@ -219,6 +220,47 @@ theory/
 | `\eqtag{编号}` | 仅公式编号，不计分 |
 | `\addtext{描述}{分值}` | 文字描述计分 |
 
+### 多解法环境 `multisol`
+
+当一道题有多种不同解法时，使用 `multisol` 环境分别列出各解法：
+
+```latex
+\begin{multisol}[可选前缀]
+\item  % 输出「（解法一）」，解法一正常使用 \eqtagscore 计分
+    \begin{equation}
+        F = ma \eqtagscore{1}{6}
+    \end{equation}
+    \begin{equation}
+        E = mc^2 \eqtagscore{2}{9}
+    \end{equation}
+\item  % 输出「（解法二）」，建议在编号后加 * 以示区分
+    \begin{equation}
+        p = mv \eqtagscore{1*}{6}
+    \end{equation}
+    \begin{equation}
+        \oint \vec{B} \cdot \mathrm{d}\vec{l} = \mu_0 I \eqtagscore{2*}{9}
+    \end{equation}
+\end{multisol}
+```
+
+**参数说明：**
+- 可选参数为前缀名称，默认为 `解法`，生成"（解法一）""（解法二）"等标题
+- 每个 `\item` 开启一条新解法
+- 各解法内使用 `\eqtagscore`、`\addtext` 等命令正常标记分值；建议对第二条及以后解法的公式编号加 `*` 后缀以示区分
+
+**分值计算规则：**
+- 第一条解法的分值正常累加至题目总分
+- 后续解法仅在评分标准中展示，不重复累加
+- 各解法的总分应当相同；启用 `\setscorecheck{true}` 时，若各解法总分不一致，将在编译输出中产生红色警告
+
+**自定义前缀示例：**
+
+```latex
+\begin{multisol}[方法]  % 生成「（方法一）」「（方法二）」等
+    ...
+\end{multisol}
+```
+
 ### 自动生成评分标准
 
 ```latex
@@ -238,6 +280,7 @@ theory/
 - 各小问声明分值与题目总分是否一致
 - 子层级声明分值与父层级声明是否一致
 - 总分是否为有效数值
+- `multisol` 环境中各解法总分是否一致
 
 ## 页眉页脚设置
 

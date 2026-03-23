@@ -292,6 +292,24 @@
     \par\noindent{\bfseries 评分标准：#1}%
 }
 
+% === 多解法环境 ===
+% 用法：\begin{multisol}[前缀] \item 解法一正文 \item 解法二正文 \end{multisol}
+% 前缀默认"解法"，\item 自动生成标签"（解法一）""（解法二）"等
+% 评分标准中各解法式子自动合并展示，并在启用分值检查时验证各解法总分是否相等
+\newcounter{cphos@msolitem}
+\NewDocumentEnvironment{multisol}{O{解法}}{%
+    \setcounter{cphos@msolitem}{0}%
+    \cphosmsolstart{#1}%
+    \renewcommand{\item}{%
+        \stepcounter{cphos@msolitem}%
+        \cphosmsolitem%
+        \par\noindent（#1\chnnum{\value{cphos@msolitem}}）\enspace%
+    }%
+}{%
+    \cphosmsolend%
+    \par%
+}
+
 % === 参考文献环境 ===
 % 用于在解答之后、评分标准之前展示参考文献
 % 中文楷体，西文Times New Roman，五号字体

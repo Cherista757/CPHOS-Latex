@@ -107,8 +107,21 @@
     \__cphos_add:nnnn {4}{#1}{#2}{eq}
 }
 
+% \eqtagaltscore 已移除，请改用 multisol 环境
+
 \NewDocumentCommand{\addtext}{m m}{
     \__cphos_add:nnnn {4}{#1}{#2}{text}
+}
+
+% multisol 环境控制命令（供 cphos.cls 中 multisol 环境调用）
+\NewDocumentCommand{\cphosmsolstart}{m}{
+    \__cphos_add:nnnn {5}{#1}{0}{msolstart}
+}
+\NewDocumentCommand{\cphosmsolitem}{}{
+    \__cphos_add:nnnn {5}{}{0}{msolitem}
+}
+\NewDocumentCommand{\cphosmsolend}{}{
+    \__cphos_add:nnnn {5}{}{0}{msolend}
 }
 
 % ============================================
@@ -130,6 +143,13 @@
 \seq_new:N \g__cphos_stack_hassub_seq
 \seq_new:N \g__cphos_warnings_seq
 
+% multisol 跟踪变量
+\int_new:N \g__cphos_multisol_item_int       % 当前所在解法序号（0=不在 multisol 内）
+\int_new:N \g__cphos_multisol_item_score_int  % 当前解法已累计分值（用于各解法一致性验证）
+\seq_new:N \g__cphos_multisol_item_scores_seq % 各解法分值列表
+\tl_new:N  \g__cphos_multisol_prefix_tl       % 解法前缀名（如"解法"）
+\bool_new:N \l__cphos_multisol_ok_bool         % 验证用临时布尔值
+
 % 专用临时变量
 \tl_new:N \l__cphos_tmp_level_tl
 \tl_new:N \l__cphos_tmp_label_tl
@@ -141,7 +161,7 @@
 \int_new:N \l__cphos_pop_actual_int
 \int_new:N \l__cphos_add_tmp_int
 
-% 添加式子到分组
+% 添加式子到分组（计入总分）
 \cs_new:Npn \__cphos_add_eq:nn #1 #2 {
     \prop_if_in:NnTF \l__cphos_eq_by_score_prop {#2} {
         \prop_get:NnN \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
@@ -157,6 +177,27 @@
         \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + #2 }
         \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
     }
+}
+
+% 添加式子到分组（仅显示，不计入总分校验——用于 multisol 替代解法）
+\cs_new:Npn \__cphos_add_eq_alt:nn #1 #2 {
+    \prop_if_in:NnTF \l__cphos_eq_by_score_prop {#2} {
+        \prop_get:NnN \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
+        \tl_put_right:Nn \l__cphos_tmp_label_tl {（#1）}
+        \prop_gput:NnV \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
+    }{
+        \prop_gput:Nnn \l__cphos_eq_by_score_prop {#2} {（#1）}
+        \seq_gput_right:Nn \l__cphos_score_values_seq {#2}
+    }
+    % 不累加到主栈，避免替代解法分数重复计入总分
+}
+
+% 中文数字辅助（用于 multisol 验证警告信息）
+\cs_new:Npn \__cphos_chinese_num:n #1 {
+    \int_case:nnF {#1} {
+        {1}{一}{2}{二}{3}{三}{4}{四}{5}{五}
+        {6}{六}{7}{七}{8}{八}{9}{九}{10}{十}
+    }{#1}
 }
 
 % 计算式子数量
@@ -309,14 +350,58 @@
         }
         {4}{
             \str_if_eq:nnTF {#4} {eq} {
-                \__cphos_add_eq:nn {#2} {#3}
+                % multisol 第2+解法：仅显示，不累计到主栈
+                \int_compare:nNnTF {\g__cphos_multisol_item_int} > {1} {
+                    \__cphos_add_eq_alt:nn {#2} {#3}
+                }{
+                    \__cphos_add_eq:nn {#2} {#3}
+                }
+                % 所有解法均累计到逐项分值（验证各解法得分一致性）
+                \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
+                    \int_gadd:Nn \g__cphos_multisol_item_score_int {#3}
+                }
             }{
+                % text 类型
                 \tl_put_right:Nn \l__cphos_text_items_tl {#2#3分，}
-                % 累加到栈顶
-                \seq_if_empty:NF \g__cphos_stack_actual_seq {
-                    \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
-                    \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + #3 }
-                    \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
+                % 仅第一解法（或非 multisol）累计到主栈
+                \int_compare:nNnF {\g__cphos_multisol_item_int} > {1} {
+                    \seq_if_empty:NF \g__cphos_stack_actual_seq {
+                        \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
+                        \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + #3 }
+                        \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
+                    }
+                }
+                % 所有解法均累计到逐项分值
+                \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
+                    \int_gadd:Nn \g__cphos_multisol_item_score_int {#3}
+                }
+            }
+        }
+        {5}{
+            % multisol 控制标记
+            \str_if_eq:nnTF {#4} {msolstart} {
+                \int_gzero:N \g__cphos_multisol_item_int
+                \seq_gclear:N \g__cphos_multisol_item_scores_seq
+                \int_gzero:N \g__cphos_multisol_item_score_int
+                \tl_gset:Nn \g__cphos_multisol_prefix_tl {#2}
+            }{
+                \str_if_eq:nnTF {#4} {msolitem} {
+                    % 新解法开始：保存前一解法分值并重置
+                    \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
+                        \seq_gput_right:Nx \g__cphos_multisol_item_scores_seq
+                            {\int_use:N \g__cphos_multisol_item_score_int}
+                        \int_gzero:N \g__cphos_multisol_item_score_int
+                    }
+                    \int_gincr:N \g__cphos_multisol_item_int
+                }{
+                    % msolend：保存最后解法分值，验证一致性
+                    \seq_gput_right:Nx \g__cphos_multisol_item_scores_seq
+                        {\int_use:N \g__cphos_multisol_item_score_int}
+                    \int_gzero:N \g__cphos_multisol_item_int
+                    \int_gzero:N \g__cphos_multisol_item_score_int
+                    \bool_if:NT \g__cphos_check_score_bool {
+                        \__cphos_validate_multisol:
+                    }
                 }
             }
         }
@@ -339,6 +424,34 @@
 % 新增变量：实际累计总分
 \int_new:N \g__cphos_actual_total_int
 
+% 验证 multisol 各解法分值一致性
+\cs_new:Npn \__cphos_validate_multisol: {
+    \seq_if_empty:NF \g__cphos_multisol_item_scores_seq {
+        \seq_get_left:NN \g__cphos_multisol_item_scores_seq \l_tmpa_tl
+        \int_set:Nn \l__cphos_pop_declared_int {\l_tmpa_tl}
+        \bool_set_true:N \l__cphos_multisol_ok_bool
+        \seq_map_inline:Nn \g__cphos_multisol_item_scores_seq {
+            \int_compare:nNnF {##1} = {\l__cphos_pop_declared_int} {
+                \bool_set_false:N \l__cphos_multisol_ok_bool
+            }
+        }
+        \bool_if:NF \l__cphos_multisol_ok_bool {
+            \tl_clear:N \l__cphos_warn_msg_tl
+            \tl_set:Nn \l__cphos_warn_msg_tl {multisol~}
+            \tl_put_right:NV \l__cphos_warn_msg_tl \g__cphos_multisol_prefix_tl
+            \tl_put_right:Nn \l__cphos_warn_msg_tl {：各解法分值不一致（}
+            \int_zero:N \l__cphos_add_tmp_int
+            \seq_map_inline:Nn \g__cphos_multisol_item_scores_seq {
+                \int_incr:N \l__cphos_add_tmp_int
+                \tl_put_right:Nx \l__cphos_warn_msg_tl
+                    {\__cphos_chinese_num:n{\int_use:N \l__cphos_add_tmp_int}:~##1~分、}
+            }
+            \regex_replace_once:nnN {、\Z} {）} \l__cphos_warn_msg_tl
+            \seq_gput_right:NV \g__cphos_warnings_seq \l__cphos_warn_msg_tl
+        }
+    }
+}
+
 % 生成完整评分标准
 \cs_new:Npn \__cphos_generate: {
     \tl_clear:N \l__cphos_output_tl
@@ -347,6 +460,10 @@
     \tl_clear:N \l__cphos_text_items_tl
     \seq_gclear:N \g__cphos_warnings_seq
     \int_gzero:N \g__cphos_actual_total_int
+    % 清空 multisol 状态
+    \int_gzero:N \g__cphos_multisol_item_int
+    \seq_gclear:N \g__cphos_multisol_item_scores_seq
+    \int_gzero:N \g__cphos_multisol_item_score_int
     % 清空栈
     \seq_gclear:N \g__cphos_stack_level_seq
     \seq_gclear:N \g__cphos_stack_label_seq

@@ -119,18 +119,25 @@
 \addtext{讨论}{4}
 
 \solsubsubq{2.2}{15}
-小球质量$m$等物理量作为行内公式使用斜体。一些特别的角标如$c_{\max}$可以用正体。
+对于有多种解法的问题，可以使用\texttt{multisol}环境分别展示每种解法。使用\texttt{\textbackslash item}命令开启新解法，会自动生成"（解法一）""（解法二）"等标题。各解法内正常使用\texttt{\textbackslash eqtagscore}标记分值，建议对第二条及后续解法的公式编号加"\texttt{*}"后缀以示区分。第一条解法的分值正常累加，后续解法仅在评分标准中展示而不重复计分，各解法总分应相同。
+
+\begin{multisol}
+\item
 \begin{equation}
     M = I\omega \eqtagscore{7}{6}
 \end{equation}
 \begin{equation}
-    E = mc^2 \eqtagscore{8}{6}
+    v = 1.234 \text{~m/s} \eqtagscore{8}{9}
 \end{equation}
-
-数值和单位之间需要一个空格间隔，单位使用正体。使用\texttt{\textbackslash text\{\textasciitilde 单位\}}：
+\item
 \begin{equation}
-    v = 1.234 \text{~m/s} \eqtagscore{9}{3}
+    E = mc^2 \eqtagscore{7*}{6}
 \end{equation}
+\begin{equation}
+    \oint \vec{B} \cdot \mathrm{d}\vec{l} = \mu_0 I \eqtagscore{8*}{9}
+\end{equation}
+\end{multisol}
+
 一些物理常量使用的字母有统一要求，例如对于介电常量应使用$\varepsilon$而不是$\epsilon$。
 
 评分标准现在将自动生成在解答部分的最后，如果你的分值标记不正确的话将会生成提示信息在评分标准部分。
