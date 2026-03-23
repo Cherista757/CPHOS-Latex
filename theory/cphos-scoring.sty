@@ -2,37 +2,16 @@
 %%  Project: CPHOS LaTeX Template
 %%  File: cphos-scoring.sty
 %%  Copyright © 2026 gameswu & CPHOS (www.cphos.cn)
-%%
-%%  Permission is hereby granted, free of charge, to any person obtaining a 
-%%  copy of this software and associated documentation files (the "Software"), 
-%%  to deal in the Software without restriction, including without limitation 
-%%  the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-%%  and/or sell copies of the Software, and to permit persons to whom the 
-%%  Software is furnished to do so, subject to the following conditions:
-%%
-%%  The above copyright notice and this permission notice shall be included 
-%%  in all copies or substantial portions of the Software.
-%%
-%%  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-%%  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-%%  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
-%%  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-%%  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-%%  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-%%  DEALINGS IN THE SOFTWARE.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% 用法: \usepackage{cphos-scoring}
-
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{cphos-scoring}[2026/03/08 v1.0 CPHOS Scoring System]
+\ProvidesPackage{cphos-scoring}[2026/03/09 v1.4 CPHOS Scoring System (Fixed Undefined Control Sequence)]
 
 \RequirePackage{xparse}
 \RequirePackage{xcolor}
 
 \ExplSyntaxOn
 
-% 生成regex_match的V变体
 \cs_generate_variant:Nn \regex_match:nnTF { nV }
 
 % ============================================
@@ -41,7 +20,7 @@
 \seq_new:N \g__cphos_entries_seq
 
 % ============================================
-% 分值检查开关
+% 分值检查开关与存储
 % ============================================
 \bool_new:N \g__cphos_check_score_bool
 \bool_gset_false:N \g__cphos_check_score_bool
@@ -54,7 +33,6 @@
     }
 }
 
-% 当前题目总分存储
 \tl_new:N \g__cphos_problem_score_tl
 \tl_gset:Nn \g__cphos_problem_score_tl {}
 
@@ -65,7 +43,6 @@
 % ============================================
 % 内部函数
 % ============================================
-
 \cs_new:Npn \__cphos_clear: {
     \seq_gclear:N \g__cphos_entries_seq
 }
@@ -77,507 +54,195 @@
 % ============================================
 % 用户接口
 % ============================================
+\NewDocumentCommand{\clearScores}{}{ \__cphos_clear: }
 
-\NewDocumentCommand{\clearScores}{}{
-    \__cphos_clear:
-}
+\NewDocumentCommand{\scorePart}{m m}{ \__cphos_add:nnnn {0}{#1}{#2}{part} }
+\NewDocumentCommand{\scorepart}{m m}{ \__cphos_add:nnnn {1}{#1}{#2}{q1} }
+\NewDocumentCommand{\scoresubpart}{m m}{ \__cphos_add:nnnn {2}{#1}{#2}{q2} }
+\NewDocumentCommand{\scoresubsubpart}{m m}{ \__cphos_add:nnnn {3}{#1}{#2}{q3} }
 
-\NewDocumentCommand{\scorePart}{m m}{
-    \__cphos_add:nnnn {0}{#1}{#2}{part}
-}
+\NewDocumentCommand{\scorePartalt}{m m}{ \__cphos_add:nnnn {0}{#1}{#2}{part_alt} }
+\NewDocumentCommand{\scorepartalt}{m m}{ \__cphos_add:nnnn {1}{#1}{#2}{q1_alt} }
+\NewDocumentCommand{\scoresubpartalt}{m m}{ \__cphos_add:nnnn {2}{#1}{#2}{q2_alt} }
+\NewDocumentCommand{\scoresubsubpartalt}{m m}{ \__cphos_add:nnnn {3}{#1}{#2}{q3_alt} }
 
-\NewDocumentCommand{\scorepart}{m m}{
-    \__cphos_add:nnnn {1}{#1}{#2}{q1}
-}
+\NewDocumentCommand{\eqtag}{m}{ \tag*{(#1)} }
+\NewDocumentCommand{\eqtagscore}{m m}{ \tag*{(#1)} \__cphos_add:nnnn {4}{#1}{#2}{eq} }
+\NewDocumentCommand{\addeqscore}{m m}{ \__cphos_add:nnnn {4}{#1}{#2}{eq} }
+\NewDocumentCommand{\addtextscore}{m m}{ \__cphos_add:nnnn {4}{#1}{#2}{text} }
 
-\NewDocumentCommand{\scoresubpart}{m m}{
-    \__cphos_add:nnnn {2}{#1}{#2}{q2}
-}
-
-\NewDocumentCommand{\scoresubsubpart}{m m}{
-    \__cphos_add:nnnn {3}{#1}{#2}{q3}
-}
-
-\NewDocumentCommand{\eqtag}{m}{
-    \tag*{(#1)}
-}
-
-\NewDocumentCommand{\eqtagscore}{m m}{
-    \tag*{(#1)}
-    \__cphos_add:nnnn {4}{#1}{#2}{eq}
-}
-
-% \eqtagaltscore 已移除，请改用 multisol 环境
-
-\NewDocumentCommand{\addtext}{m m}{
-    \__cphos_add:nnnn {4}{#1}{#2}{text}
-}
-
-% multisol 环境控制命令（供 cphos.cls 中 multisol 环境调用）
-\NewDocumentCommand{\cphosmsolstart}{m}{
-    \__cphos_add:nnnn {5}{#1}{0}{msolstart}
-}
-\NewDocumentCommand{\cphosmsolitem}{}{
-    \__cphos_add:nnnn {5}{}{0}{msolitem}
-}
-\NewDocumentCommand{\cphosmsolend}{}{
-    \__cphos_add:nnnn {5}{}{0}{msolend}
-}
+\cs_new:Npn \__cphos_kv_ignore:n #1 {}
+\cs_new:Npn \__cphos_kv_add:nn #1 #2 { \__cphos_add:nnnn {4}{#1}{#2}{eq} }
+\NewDocumentCommand{\seteqscores}{m}{ \keyval_parse:NNn \__cphos_kv_ignore:n \__cphos_kv_add:nn {#1} }
 
 % ============================================
-% 评分标准生成
+% 核心处理逻辑 
 % ============================================
-
 \tl_new:N \l__cphos_output_tl
-\int_new:N \l__cphos_level_int
 \prop_new:N \l__cphos_eq_by_score_prop
 \seq_new:N \l__cphos_score_values_seq
 \tl_new:N \l__cphos_text_items_tl
 \int_new:N \l__cphos_eq_count_int
 
-% 分值检查变量 - 使用栈结构追踪层级
 \seq_new:N \g__cphos_stack_level_seq
 \seq_new:N \g__cphos_stack_label_seq
 \seq_new:N \g__cphos_stack_declared_seq
 \seq_new:N \g__cphos_stack_actual_seq
-\seq_new:N \g__cphos_stack_hassub_seq
+\seq_new:N \g__cphos_stack_type_seq
 \seq_new:N \g__cphos_warnings_seq
-
-\bool_new:N \g__cphos_has_flushed_multisol_bool
-\bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-
-% 新增用于智能刷新的内部宏
-\cs_new:Npn \__cphos_smart_flush:n #1 {
-    \bool_set_false:N \l_tmpa_bool
-    \seq_if_empty:NF \l__cphos_score_values_seq { \bool_set_true:N \l_tmpa_bool }
-    \tl_if_empty:NF \l__cphos_text_items_tl { \bool_set_true:N \l_tmpa_bool }
-    \bool_if:NT \l_tmpa_bool {
-        \tl_put_right:Nn \l__cphos_output_tl { \par }
-        \tl_put_right:Nx \l__cphos_output_tl { #1 }
-        \__cphos_flush_items:
-        \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
-    }
-}
-
-\cs_new:Npn \__cphos_smart_flush_level_end: {
-    \bool_set_false:N \l_tmpa_bool
-    \seq_if_empty:NF \l__cphos_score_values_seq { \bool_set_true:N \l_tmpa_bool }
-    \tl_if_empty:NF \l__cphos_text_items_tl { \bool_set_true:N \l_tmpa_bool }
-    \bool_if:NT \l_tmpa_bool {
-        \int_compare:nNnTF {\g__cphos_multisol_item_int} > {0} {
-            \tl_put_right:Nn \l__cphos_output_tl { \par }
-            \tl_put_right:Nx \l__cphos_output_tl { \g__cphos_multisol_prefix_tl\__cphos_chinese_num:n{\int_use:N \g__cphos_multisol_item_int}： }
-        }{
-            \bool_if:NT \g__cphos_has_flushed_multisol_bool {
-                \tl_put_right:Nn \l__cphos_output_tl {（共享）}
-            }
-        }
-        \__cphos_flush_items:
-    }
-}
-
-% multisol 跟踪变量
-\int_new:N \g__cphos_multisol_item_int       % 当前所在解法序号（0=不在 multisol 内）
-\int_new:N \g__cphos_multisol_item_score_int  % 当前解法已累计分值（用于各解法一致性验证）
-\seq_new:N \g__cphos_multisol_item_scores_seq % 各解法分值列表
-\tl_new:N  \g__cphos_multisol_prefix_tl       % 解法前缀名（如"解法"）
-\bool_new:N \l__cphos_multisol_ok_bool         % 验证用临时布尔值
-
-% 专用临时变量
-\tl_new:N \l__cphos_tmp_level_tl
-\tl_new:N \l__cphos_tmp_label_tl
-\tl_new:N \l__cphos_tmp_declared_tl
-\tl_new:N \l__cphos_tmp_actual_tl
-\tl_new:N \l__cphos_tmp_hassub_tl
-\int_new:N \l__cphos_pop_level_int
-\int_new:N \l__cphos_pop_declared_int
-\int_new:N \l__cphos_pop_actual_int
-\int_new:N \l__cphos_add_tmp_int
-
-% 添加式子到分组（计入总分）
-\cs_new:Npn \__cphos_add_eq:nn #1 #2 {
-    \prop_if_in:NnTF \l__cphos_eq_by_score_prop {#2} {
-        \prop_get:NnN \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
-        \tl_put_right:Nn \l__cphos_tmp_label_tl {（#1）}
-        \prop_gput:NnV \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
-    }{
-        \prop_gput:Nnn \l__cphos_eq_by_score_prop {#2} {（#1）}
-        \seq_gput_right:Nn \l__cphos_score_values_seq {#2}
-    }
-    % 累加到栈顶的实际分数
-    \seq_if_empty:NF \g__cphos_stack_actual_seq {
-        \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
-        \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + #2 }
-        \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
-    }
-}
-
-% 添加式子到分组（仅显示，不计入总分校验——用于 multisol 替代解法）
-\cs_new:Npn \__cphos_add_eq_alt:nn #1 #2 {
-    \prop_if_in:NnTF \l__cphos_eq_by_score_prop {#2} {
-        \prop_get:NnN \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
-        \tl_put_right:Nn \l__cphos_tmp_label_tl {（#1）}
-        \prop_gput:NnV \l__cphos_eq_by_score_prop {#2} \l__cphos_tmp_label_tl
-    }{
-        \prop_gput:Nnn \l__cphos_eq_by_score_prop {#2} {（#1）}
-        \seq_gput_right:Nn \l__cphos_score_values_seq {#2}
-    }
-    % 不累加到主栈，避免替代解法分数重复计入总分
-}
-
-% 中文数字辅助（用于 multisol 验证警告信息）
-\cs_new:Npn \__cphos_chinese_num:n #1 {
-    \int_case:nnF {#1} {
-        {1}{一}{2}{二}{3}{三}{4}{四}{5}{五}
-        {6}{六}{7}{七}{8}{八}{9}{九}{10}{十}
-    }{#1}
-}
-
-% 计算式子数量
-\cs_new:Npn \__cphos_count_eqs:N #1 {
-    \int_zero:N \l__cphos_eq_count_int
-    \tl_map_inline:Nn #1 {
-        \token_if_eq_charcode:NNT ##1 （ {
-            \int_incr:N \l__cphos_eq_count_int
-        }
-    }
-}
-
-% 输出当前积累的项目
-\cs_new:Npn \__cphos_flush_items: {
-    \seq_sort:Nn \l__cphos_score_values_seq {
-        \int_compare:nNnTF {##1} > {##2}
-            { \sort_return_swapped: }
-            { \sort_return_same: }
-    }
-    \seq_map_inline:Nn \l__cphos_score_values_seq {
-        \prop_get:NnN \l__cphos_eq_by_score_prop {##1} \l_tmpa_tl
-        \__cphos_count_eqs:N \l_tmpa_tl
-        \tl_put_right:NV \l__cphos_output_tl \l_tmpa_tl
-        \int_compare:nNnTF {\l__cphos_eq_count_int} > {1} {
-            \tl_put_right:Nn \l__cphos_output_tl {式各##1分，}
-        }{
-            \tl_put_right:Nn \l__cphos_output_tl {式##1分，}
-        }
-    }
-    \tl_if_empty:NF \l__cphos_text_items_tl {
-        \tl_put_right:NV \l__cphos_output_tl \l__cphos_text_items_tl
-    }
-    \prop_gclear:N \l__cphos_eq_by_score_prop
-    \seq_gclear:N \l__cphos_score_values_seq
-    \tl_clear:N \l__cphos_text_items_tl
-}
-
-% 替换最后的逗号
-\cs_new:Npn \__cphos_replace_last_comma:Nn #1 #2 {
-    \tl_if_empty:NF #1 {
-        \regex_replace_once:nnN {[，；]\Z} {#2} #1
-    }
-}
-
-% 临时变量用于警告
-\tl_new:N \l__cphos_warn_msg_tl
-\int_new:N \l__cphos_tmpd_int
-
-% 弹出栈顶并检查，将声明分数累加到父层级
-\cs_new:Npn \__cphos_pop_and_check: {
-    \seq_gpop_right:NN \g__cphos_stack_level_seq \l__cphos_tmp_level_tl
-    \int_set:Nn \l__cphos_pop_level_int { \l__cphos_tmp_level_tl }
-    \seq_gpop_right:NN \g__cphos_stack_label_seq \l__cphos_tmp_label_tl
-    \seq_gpop_right:NN \g__cphos_stack_declared_seq \l__cphos_tmp_declared_tl
-    \int_set:Nn \l__cphos_pop_declared_int { \l__cphos_tmp_declared_tl }
-    \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
-    \int_set:Nn \l__cphos_pop_actual_int { \l__cphos_tmp_actual_tl }
-    \seq_gpop_right:NN \g__cphos_stack_hassub_seq \l__cphos_tmp_hassub_tl
-    
-    % 检查分数是否匹配
-    \bool_if:NT \g__cphos_check_score_bool {
-        \int_compare:nNnF { \l__cphos_pop_declared_int } = { \l__cphos_pop_actual_int } {
-            % 构建警告消息
-            \tl_clear:N \l__cphos_warn_msg_tl
-            \int_case:nnF {\l__cphos_pop_level_int} {
-                {0}{ \tl_set:Nn \l__cphos_warn_msg_tl { Part~ } \tl_put_right:NV \l__cphos_warn_msg_tl \l__cphos_tmp_label_tl }
-                {1}{ \tl_set:Nn \l__cphos_warn_msg_tl { 第（ } \tl_put_right:NV \l__cphos_warn_msg_tl \l__cphos_tmp_label_tl \tl_put_right:Nn \l__cphos_warn_msg_tl {）问 } }
-                {2}{ \tl_set:Nn \l__cphos_warn_msg_tl { 第（ } \tl_put_right:NV \l__cphos_warn_msg_tl \l__cphos_tmp_label_tl \tl_put_right:Nn \l__cphos_warn_msg_tl {）问 } }
-                {3}{ \tl_set:Nn \l__cphos_warn_msg_tl { 第（ } \tl_put_right:NV \l__cphos_warn_msg_tl \l__cphos_tmp_label_tl \tl_put_right:Nn \l__cphos_warn_msg_tl {）问 } }
-            }{ \tl_set:Nn \l__cphos_warn_msg_tl { 未知层级 } }
-            \tl_put_right:Nx \l__cphos_warn_msg_tl { ：声明 \int_use:N \l__cphos_pop_declared_int 分 }
-            \str_if_eq:VnTF \l__cphos_tmp_hassub_tl {1} {
-                \tl_put_right:Nx \l__cphos_warn_msg_tl { ，子层级声明合计~ \int_use:N \l__cphos_pop_actual_int 分 }
-            }{
-                \tl_put_right:Nx \l__cphos_warn_msg_tl { ，实际~ \int_use:N \l__cphos_pop_actual_int 分 }
-            }
-            \seq_gput_right:NV \g__cphos_warnings_seq \l__cphos_warn_msg_tl
-        }
-    }
-    
-    % 将弹出项的声明分数累加到新栈顶（父层级）的实际分数
-    \seq_if_empty:NTF \g__cphos_stack_actual_seq {
-        % 栈空，说明是顶层元素，累加到总分
-        \int_gadd:Nn \g__cphos_actual_total_int { \l__cphos_pop_declared_int }
-    }{
-        \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
-        \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + \l__cphos_pop_declared_int }
-        \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
-        % 标记父层级有子层级
-        \seq_gpop_right:NN \g__cphos_stack_hassub_seq \l__cphos_tmp_hassub_tl
-        \seq_gput_right:Nn \g__cphos_stack_hassub_seq {1}
-    }
-}
-
-% 弹出所有层级 >= 指定层级的栈项（递归实现）
-\cs_new:Npn \__cphos_pop_until_aux:n #1 {
-    \seq_if_empty:NTF \g__cphos_stack_level_seq {
-        % 栈空，停止
-    }{
-        \seq_get_right:NN \g__cphos_stack_level_seq \l__cphos_tmp_level_tl
-        \int_compare:nNnTF { \l__cphos_tmp_level_tl } < {#1} {
-            % 栈顶层级小于目标，停止
-        }{
-            \__cphos_pop_and_check:
-            \__cphos_pop_until_aux:n {#1}
-        }
-    }
-}
-\cs_new:Npn \__cphos_pop_until:n #1 {
-    \__cphos_pop_until_aux:n {#1}
-}
-
-% 压入新层级
-\cs_new:Npn \__cphos_push_level:nnn #1 #2 #3 {
-    \__cphos_pop_until:n {#1}
-    \seq_gput_right:Nn \g__cphos_stack_level_seq {#1}
-    \seq_gput_right:Nn \g__cphos_stack_label_seq {#2}
-    \seq_gput_right:Nn \g__cphos_stack_declared_seq {#3}
-    \seq_gput_right:Nn \g__cphos_stack_actual_seq {0}
-    \seq_gput_right:Nn \g__cphos_stack_hassub_seq {0}
-}
-
-% 处理单个条目
-\cs_new:Npn \__cphos_process:nnnn #1 #2 #3 #4 {
-    \int_set:Nn \l__cphos_level_int {#1}
-    \int_case:nnF {\l__cphos_level_int} {
-        {0}{
-            \__cphos_smart_flush_level_end:
-            \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
-            \bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-            \__cphos_push_level:nnn {0}{#2}{#3}
-            \tl_put_right:Nn \l__cphos_output_tl { \par Part~#2~#3分：}
-        }
-        {1}{
-            \__cphos_smart_flush_level_end:
-            \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
-            \bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-            \__cphos_push_level:nnn {1}{#2}{#3}
-            \tl_put_right:Nn \l__cphos_output_tl { \par 第（#2）问#3分：}
-        }
-        {2}{
-            \__cphos_smart_flush_level_end:
-            \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
-            \bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-            \__cphos_push_level:nnn {2}{#2}{#3}
-            \tl_put_right:Nn \l__cphos_output_tl { \par 第（#2）问#3分：}
-        }
-        {3}{
-            \__cphos_smart_flush_level_end:
-            \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
-            \bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-            \__cphos_push_level:nnn {3}{#2}{#3}
-            \tl_put_right:Nn \l__cphos_output_tl { \par 第（#2）问#3分：}
-        }
-        {4}{
-            \str_if_eq:nnTF {#4} {eq} {
-                % multisol 第2+解法：仅显示，不累计到主栈
-                \int_compare:nNnTF {\g__cphos_multisol_item_int} > {1} {
-                    \__cphos_add_eq_alt:nn {#2} {#3}
-                }{
-                    \__cphos_add_eq:nn {#2} {#3}
-                }
-                % 所有解法均累计到逐项分值（验证各解法得分一致性）
-                \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
-                    \int_gadd:Nn \g__cphos_multisol_item_score_int {#3}
-                }
-            }{
-                % text 类型
-                \tl_put_right:Nn \l__cphos_text_items_tl {#2#3分，}
-                % 仅第一解法（或非 multisol）累计到主栈
-                \int_compare:nNnF {\g__cphos_multisol_item_int} > {1} {
-                    \seq_if_empty:NF \g__cphos_stack_actual_seq {
-                        \seq_gpop_right:NN \g__cphos_stack_actual_seq \l__cphos_tmp_actual_tl
-                        \int_set:Nn \l__cphos_add_tmp_int { \l__cphos_tmp_actual_tl + #3 }
-                        \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_use:N \l__cphos_add_tmp_int }
-                    }
-                }
-                % 所有解法均累计到逐项分值
-                \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
-                    \int_gadd:Nn \g__cphos_multisol_item_score_int {#3}
-                }
-            }
-        }
-        {5}{
-            % multisol 控制标记
-            \str_if_eq:nnTF {#4} {msolstart} {
-                \__cphos_smart_flush:n {（共享）}
-                \bool_gset_true:N \g__cphos_has_flushed_multisol_bool
-                \int_gzero:N \g__cphos_multisol_item_int
-                \seq_gclear:N \g__cphos_multisol_item_scores_seq
-                \int_gzero:N \g__cphos_multisol_item_score_int
-                \tl_gset:Nn \g__cphos_multisol_prefix_tl {#2}
-            }{
-                \str_if_eq:nnTF {#4} {msolitem} {
-                    % 新解法开始：保存前一解法分值并重置
-                    \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
-                        \__cphos_smart_flush:n {\g__cphos_multisol_prefix_tl\__cphos_chinese_num:n{\int_use:N \g__cphos_multisol_item_int}：}
-                        \seq_gput_right:Nx \g__cphos_multisol_item_scores_seq
-                            {\int_use:N \g__cphos_multisol_item_score_int}
-                        \int_gzero:N \g__cphos_multisol_item_score_int
-                    }
-                    \int_gincr:N \g__cphos_multisol_item_int
-                }{
-                    % msolend：保存最后解法分值，验证一致性
-                    \int_compare:nNnT {\g__cphos_multisol_item_int} > {0} {
-                        \__cphos_smart_flush:n {\g__cphos_multisol_prefix_tl\__cphos_chinese_num:n{\int_use:N \g__cphos_multisol_item_int}：}
-                    }
-                    \seq_gput_right:Nx \g__cphos_multisol_item_scores_seq
-                        {\int_use:N \g__cphos_multisol_item_score_int}
-                    \int_gzero:N \g__cphos_multisol_item_int
-                    \int_gzero:N \g__cphos_multisol_item_score_int
-                    \bool_if:NT \g__cphos_check_score_bool {
-                        \__cphos_validate_multisol:
-                    }
-                }
-            }
-        }
-    }{}
-}
-
-% 弹出所有剩余栈项（递归实现）
-\cs_new:Npn \__cphos_pop_all_aux: {
-    \seq_if_empty:NTF \g__cphos_stack_level_seq {
-        % 栈空，停止
-    }{
-        \__cphos_pop_and_check:
-        \__cphos_pop_all_aux:
-    }
-}
-\cs_new:Npn \__cphos_pop_all: {
-    \__cphos_pop_all_aux:
-}
-
-% 新增变量：实际累计总分
 \int_new:N \g__cphos_actual_total_int
 
-% 验证 multisol 各解法分值一致性
-\cs_new:Npn \__cphos_validate_multisol: {
-    \seq_if_empty:NF \g__cphos_multisol_item_scores_seq {
-        \seq_get_left:NN \g__cphos_multisol_item_scores_seq \l_tmpa_tl
-        \int_set:Nn \l__cphos_pop_declared_int {\l_tmpa_tl}
-        \bool_set_true:N \l__cphos_multisol_ok_bool
-        \seq_map_inline:Nn \g__cphos_multisol_item_scores_seq {
-            \int_compare:nNnF {##1} = {\l__cphos_pop_declared_int} {
-                \bool_set_false:N \l__cphos_multisol_ok_bool
-            }
-        }
-        \bool_if:NF \l__cphos_multisol_ok_bool {
-            \tl_clear:N \l__cphos_warn_msg_tl
-            \tl_set:Nn \l__cphos_warn_msg_tl {multisol~}
-            \tl_put_right:NV \l__cphos_warn_msg_tl \g__cphos_multisol_prefix_tl
-            \tl_put_right:Nn \l__cphos_warn_msg_tl {：各解法分值不一致（}
-            \int_zero:N \l__cphos_add_tmp_int
-            \seq_map_inline:Nn \g__cphos_multisol_item_scores_seq {
-                \int_incr:N \l__cphos_add_tmp_int
-                \tl_put_right:Nx \l__cphos_warn_msg_tl
-                    {\__cphos_chinese_num:n{\int_use:N \l__cphos_add_tmp_int}:~##1~分、}
-            }
-            \regex_replace_once:nnN {、\Z} {）} \l__cphos_warn_msg_tl
-            \seq_gput_right:NV \g__cphos_warnings_seq \l__cphos_warn_msg_tl
-        }
+\cs_new:Npn \__cphos_add_eq:nn #1 #2 {
+    \prop_if_in:NnTF \l__cphos_eq_by_score_prop {#2} {
+        \prop_get:NnN \l__cphos_eq_by_score_prop {#2} \l_tmpa_tl
+        \tl_put_right:Nn \l_tmpa_tl {（#1）}
+        \prop_gput:NnV \l__cphos_eq_by_score_prop {#2} \l_tmpa_tl
+    }{
+        \prop_gput:Nnn \l__cphos_eq_by_score_prop {#2} {（#1）}
+        \seq_gput_right:Nn \l__cphos_score_values_seq {#2}
+    }
+    \seq_if_empty:NF \g__cphos_stack_actual_seq {
+        \seq_gpop_right:NN \g__cphos_stack_actual_seq \l_tmpa_tl
+        \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_eval:n { \l_tmpa_tl + #2 } }
     }
 }
 
-% 生成完整评分标准
-\cs_new:Npn \__cphos_generate: {
-    \tl_clear:N \l__cphos_output_tl
+\cs_new:Npn \__cphos_flush_items: {
+    \seq_sort:Nn \l__cphos_score_values_seq { \int_compare:nNnTF {##1} > {##2} { \sort_return_swapped: } { \sort_return_same: } }
+    \seq_map_inline:Nn \l__cphos_score_values_seq {
+        \prop_get:NnN \l__cphos_eq_by_score_prop {##1} \l_tmpa_tl
+        \int_zero:N \l__cphos_eq_count_int
+        \tl_map_inline:Nn \l_tmpa_tl { \token_if_eq_charcode:NNT ####1 （ { \int_incr:N \l__cphos_eq_count_int } }
+        \tl_put_right:NV \l__cphos_output_tl \l_tmpa_tl
+        \int_compare:nNnTF {\l__cphos_eq_count_int} > {1} 
+            { \tl_put_right:Nn \l__cphos_output_tl { 式各 ##1 分， } }
+            { \tl_put_right:Nn \l__cphos_output_tl { 式 ##1 分， } }
+    }
+    \tl_if_empty:NF \l__cphos_text_items_tl { \tl_put_right:NV \l__cphos_output_tl \l__cphos_text_items_tl }
     \prop_gclear:N \l__cphos_eq_by_score_prop
     \seq_gclear:N \l__cphos_score_values_seq
     \tl_clear:N \l__cphos_text_items_tl
-    \seq_gclear:N \g__cphos_warnings_seq
-    \int_gzero:N \g__cphos_actual_total_int
-    \bool_gset_false:N \g__cphos_has_flushed_multisol_bool
-    % 清空 multisol 状态
-    \int_gzero:N \g__cphos_multisol_item_int
-    \seq_gclear:N \g__cphos_multisol_item_scores_seq
-    \int_gzero:N \g__cphos_multisol_item_score_int
-    % 清空栈
-    \seq_gclear:N \g__cphos_stack_level_seq
-    \seq_gclear:N \g__cphos_stack_label_seq
-    \seq_gclear:N \g__cphos_stack_declared_seq
-    \seq_gclear:N \g__cphos_stack_actual_seq
-    \seq_gclear:N \g__cphos_stack_hassub_seq
-    
-    \seq_map_inline:Nn \g__cphos_entries_seq {
-        \__cphos_process:nnnn ##1
+}
+
+\cs_new:Npn \__cphos_replace_last_comma:Nn #1 #2 {
+    \tl_if_empty:NF #1 { \regex_replace_once:nnN { ， \Z } { #2 } #1 }
+}
+
+\cs_new:Npn \__cphos_pop_and_check: {
+    \seq_if_empty:NT \g__cphos_stack_level_seq { \prev_return } 
+    \seq_gpop_right:NN \g__cphos_stack_level_seq \l_tmp_level_tl
+    \seq_gpop_right:NN \g__cphos_stack_label_seq \l_tmp_label_tl
+    \seq_gpop_right:NN \g__cphos_stack_declared_seq \l_tmp_declared_tl
+    \seq_gpop_right:NN \g__cphos_stack_actual_seq \l_tmp_actual_tl
+    \seq_gpop_right:NN \g__cphos_stack_type_seq \l_tmp_type_tl
+
+    \bool_if:NT \g__cphos_check_score_bool {
+        \int_compare:nNnF { \l_tmp_declared_tl } = { \l_tmp_actual_tl } {
+            \tl_clear:N \l_tmpb_tl
+            \str_if_in:NnT \l_tmp_type_tl { alt } { \tl_set:Nn \l_tmpb_tl { 【另解】 } }
+            \int_case:nn { \l_tmp_level_tl } {
+                {0} { \tl_put_right:Nn \l_tmpb_tl { Part~ } \tl_put_right:NV \l_tmpb_tl \l_tmp_label_tl }
+                {1} { \tl_put_right:Nn \l_tmpb_tl { 第（ } \tl_put_right:NV \l_tmpb_tl \l_tmp_label_tl \tl_put_right:Nn \l_tmpb_tl { ）问 } }
+                {2} { \tl_put_right:Nn \l_tmpb_tl { 第（ } \tl_put_right:NV \l_tmpb_tl \l_tmp_label_tl \tl_put_right:Nn \l_tmpb_tl { ）问 } }
+                {3} { \tl_put_right:Nn \l_tmpb_tl { 第（ } \tl_put_right:NV \l_tmpb_tl \l_tmp_label_tl \tl_put_right:Nn \l_tmpb_tl { ）问 } }
+            }
+            \tl_put_right:Nx \l_tmpb_tl { ：声明 \l_tmp_declared_tl 分，实际 \l_tmp_actual_tl 分 }
+            \seq_gput_right:NV \g__cphos_warnings_seq \l_tmpb_tl
+        }
     }
-    
-    \__cphos_smart_flush_level_end:
-    \__cphos_pop_all:
-    \__cphos_replace_last_comma:Nn \l__cphos_output_tl {。}
-    
-    % 检查是否有有效的题目总分
-    \tl_if_empty:NTF \g__cphos_problem_score_tl {
-        % 无总分声明
-        \par\noindent\bfseries 评分标准：
-        \l__cphos_output_tl
-        \mdseries
-        \bool_if:NT \g__cphos_check_score_bool {
-            \par\noindent\textcolor{red}{\bfseries 【分值检查警告】}
-            \par\noindent\textcolor{red}{题目未设置总分。}
+
+    \str_if_in:NnF \l_tmp_type_tl { alt } {
+        \seq_if_empty:NTF \g__cphos_stack_actual_seq {
+            \int_gadd:Nn \g__cphos_actual_total_int { \l_tmp_declared_tl }
+        }{
+            \seq_gpop_right:NN \g__cphos_stack_actual_seq \l_tmpa_tl
+            \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_eval:n { \l_tmpa_tl + \l_tmp_declared_tl } }
+        }
+    }
+}
+
+% 递归弹栈
+\cs_new:Npn \__cphos_pop_until:n #1 {
+    \seq_if_empty:NF \g__cphos_stack_level_seq {
+        \seq_get_right:NN \g__cphos_stack_level_seq \l_tmpa_tl
+        \int_compare:nNnF { \l_tmpa_tl } < {#1} { 
+            \__cphos_pop_and_check: 
+            \__cphos_pop_until:n {#1} 
+        }
+    }
+}
+
+% 递归清空所有剩余栈（代替了报错的那个 non-existent loop）
+\cs_new:Npn \__cphos_pop_all: {
+    \seq_if_empty:NF \g__cphos_stack_level_seq {
+        \__cphos_pop_and_check:
+        \__cphos_pop_all:
+    }
+}
+
+\cs_new:Npn \__cphos_process:nnnn #1 #2 #3 #4 {
+    \int_compare:nNnTF {#1} = {4} {
+        \str_if_eq:nnTF {#4} {eq} { \__cphos_add_eq:nn {#2} {#3} }{
+            \tl_put_right:Nn \l__cphos_text_items_tl {#2#3分，}
+            \seq_if_empty:NF \g__cphos_stack_actual_seq {
+                \seq_gpop_right:NN \g__cphos_stack_actual_seq \l_tmpa_tl
+                \seq_gput_right:Nx \g__cphos_stack_actual_seq { \int_eval:n { \l_tmpa_tl + #3 } }
+            }
         }
     }{
-        % 有总分声明，检查是否为有效数值
-        \regex_match:nVTF {^\d+$} \g__cphos_problem_score_tl {
-            \par\noindent\bfseries 评分标准：本题满分\tl_use:N \g__cphos_problem_score_tl 分。
-            \l__cphos_output_tl
-            \mdseries
-            % 检查实际分数与声明分数是否一致
-            \bool_if:NT \g__cphos_check_score_bool {
-                % 计算所有层级0和层级1的声明总分
-                \int_compare:nNnF { \g__cphos_actual_total_int } = { \tl_use:N \g__cphos_problem_score_tl } {
-                    \seq_gput_right:Nx \g__cphos_warnings_seq {
-                        题目总分声明~\tl_use:N \g__cphos_problem_score_tl~分，各小问声明合计~\int_use:N \g__cphos_actual_total_int~分
-                    }
-                }
-                \seq_if_empty:NF \g__cphos_warnings_seq {
-                    \par\noindent\textcolor{red}{\bfseries 【分值检查警告】}
-                    \seq_map_inline:Nn \g__cphos_warnings_seq {
-                        \par\noindent\textcolor{red}{##1}
-                    }
-                }
-            }
-        }{
-            % 总分不是有效数值
-            \par\noindent\bfseries 评分标准：
-            \l__cphos_output_tl
-            \mdseries
-            \bool_if:NT \g__cphos_check_score_bool {
-                \par\noindent\textcolor{red}{\bfseries 【分值检查警告】}
-                \par\noindent\textcolor{red}{题目总分"\tl_use:N \g__cphos_problem_score_tl"不是有效数值。}
-                \seq_if_empty:NF \g__cphos_warnings_seq {
-                    \seq_map_inline:Nn \g__cphos_warnings_seq {
-                        \par\noindent\textcolor{red}{##1}
-                    }
-                }
-            }
+        \__cphos_flush_items:
+        \__cphos_replace_last_comma:Nn \l__cphos_output_tl {；}
+        \__cphos_pop_until:n {#1}
+        \seq_gput_right:Nn \g__cphos_stack_level_seq {#1}
+        \seq_gput_right:Nn \g__cphos_stack_label_seq {#2}
+        \seq_gput_right:Nn \g__cphos_stack_declared_seq {#3}
+        \seq_gput_right:Nn \g__cphos_stack_actual_seq {0}
+        \seq_gput_right:Nn \g__cphos_stack_type_seq {#4}
+        
+        \str_if_in:nnTF {#4} { alt } 
+            { \tl_put_right:Nn \l__cphos_output_tl { \par\noindent \textbf{另解}： } }
+            { \tl_put_right:Nn \l__cphos_output_tl { \par } }
+            
+        \int_case:nn {#1} {
+            {0}{ \tl_put_right:Nn \l__cphos_output_tl { Part~#2~#3分：} }
+            {1}{ \tl_put_right:Nn \l__cphos_output_tl { 第（#2）问#3分：} }
+            {2}{ \tl_put_right:Nn \l__cphos_output_tl { 第（#2）问#3分：} }
+            {3}{ \tl_put_right:Nn \l__cphos_output_tl { 第（#2）问#3分：} }
         }
     }
 }
 
-\NewDocumentCommand{\scoring}{}{
-    \par\vspace{\baselineskip}%  % 评分标准前空一行
-    \__cphos_generate:
-    \par\vspace{\baselineskip}%  % 评分标准后空一行
+\cs_new:Npn \__cphos_generate: {
+    \tl_clear:N \l__cphos_output_tl \prop_gclear:N \l__cphos_eq_by_score_prop
+    \seq_gclear:N \l__cphos_score_values_seq \tl_clear:N \l__cphos_text_items_tl
+    \seq_gclear:N \g__cphos_warnings_seq \int_gzero:N \g__cphos_actual_total_int
+    \seq_gclear:N \g__cphos_stack_level_seq \seq_get_right:NN \g__cphos_stack_level_seq \l_tmpa_tl % 清空
+    \seq_gclear:N \g__cphos_stack_label_seq \seq_gclear:N \g__cphos_stack_declared_seq 
+    \seq_gclear:N \g__cphos_stack_actual_seq \seq_gclear:N \g__cphos_stack_type_seq
+    
+    \seq_map_inline:Nn \g__cphos_entries_seq { \__cphos_process:nnnn ##1 }
+    \__cphos_flush_items:
+    
+    \__cphos_pop_all: % 这里原本写了会报错的 \seq_until_do:nn，现在用自写递归函数替代，安全了。
+    
+    \__cphos_replace_last_comma:Nn \l__cphos_output_tl {。}
+    
+    \par\noindent\bfseries 评分标准：\tl_if_empty:NF \g__cphos_problem_score_tl { 本题满分\g__cphos_problem_score_tl 分。}
+    \l__cphos_output_tl \mdseries
+    \bool_if:NT \g__cphos_check_score_bool {
+        \tl_if_empty:NF \g__cphos_problem_score_tl {
+            \int_compare:nNnF { \g__cphos_actual_total_int } = { \g__cphos_problem_score_tl } {
+                \seq_gput_right:Nx \g__cphos_warnings_seq { 题目总分声明~\g__cphos_problem_score_tl~分，主解法合计~\int_use:N \g__cphos_actual_total_int~分 }
+            }
+        }
+        \seq_if_empty:NF \g__cphos_warnings_seq {
+            \par\noindent\textcolor{red}{\bfseries 【分值检查警告】}
+            \seq_map_inline:Nn \g__cphos_warnings_seq { \par\noindent\textcolor{red}{##1} }
+        }
+    }
 }
 
-\ExplSyntaxOff
+\NewDocumentCommand{\scoring}{}{ \par\vspace{0.5\baselineskip} \__cphos_generate: \par\vspace{0.5\baselineskip} }
 
+\ExplSyntaxOff
 \endinput
